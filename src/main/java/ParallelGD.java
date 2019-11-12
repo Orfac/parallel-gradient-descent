@@ -6,6 +6,7 @@ import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.mllib.regression.LinearRegressionModel;
 import org.apache.spark.mllib.regression.LinearRegressionWithSGD;
+import org.apache.spark.rdd.RDD;
 import scala.Tuple2;
 
 import java.util.Arrays;
@@ -15,18 +16,34 @@ public class ParallelGD {
     private JavaRDD<LabeledPoint> data;
     private LinearRegressionModel model;
     private JavaSparkContext sparkContext;
+    private int workerCount;
 
-    public ParallelGD(double MaxErrorValue, JavaSparkContext context){
+    public ParallelGD(double MaxErrorValue, int count, JavaSparkContext context){
         maxErrorValue = MaxErrorValue;
         sparkContext = context;
+        workerCount = count;
     }
     public LinearRegressionModel Train(JavaRDD<LabeledPoint> inputData){
         data = sparkContext.parallelize(inputData.collect());
         model = LinearRegressionWithSGD.train(data.rdd(),1);
         while (!isModelCompleted()){
-            data.mapPartitions(a -> {
-                return a;
+            double[] vectors = model.weights().toArray();
+            double[] bufferedVectors = vectors.clone();
+            Arrays.fill(bufferedVectors, 0);
+
+            data.mapPartitions(part -> {
+                LinearRegressionModel tmpModel =  LinearRegressionWithSGD
+                        .train((RDD<LabeledPoint>)part,1,0.001,0.001,model.weights());
+                double[] tmpVector = tmpModel.weights().toArray();
+                for (int i = 0; i < bufferedVectors.length; i++) {
+                    bufferedVectors[i] += tmpVector[i];
+                }
+                return part;
             });
+
+            for (int i = 0; i < vectors.length; i++) {
+                vectors[i] += bufferedVectors[i] / workerCount;
+            }
         }
         return model;
     }
