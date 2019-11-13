@@ -2,6 +2,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.mllib.regression.LinearRegressionModel;
@@ -25,7 +26,7 @@ public class ParallelGD {
         workerCount = count;
     }
     public LinearRegressionModel Train(JavaRDD<LabeledPoint> inputData){
-        data = sparkContext.parallelize(inputData.collect());
+        data = sparkContext.parallelize(inputData.collect(),workerCount);
         model = LinearRegressionWithSGD.train(data.rdd(),1);
         while (!isModelCompleted()){
             double[] vectors = model.weights().toArray();
@@ -34,7 +35,7 @@ public class ParallelGD {
 
             data.mapPartitions(part -> {
                 LinearRegressionModel tmpModel =  LinearRegressionWithSGD
-                        .train((RDD<LabeledPoint>)part,iterationsNUm,0.001,0.001,model.weights());
+                        .train((RDD<LabeledPoint>)part,iterationsNum,0.001,0.001,model.weights());
                 double[] tmpVector = tmpModel.weights().toArray();
                 for (int i = 0; i < bufferedVectors.length; i++) {
                     bufferedVectors[i] += tmpVector[i];
@@ -45,7 +46,7 @@ public class ParallelGD {
             for (int i = 0; i < vectors.length; i++) {
                 vectors[i] = bufferedVectors[i] / workerCount;
             }
-            model = new LinearRegressionModel(Vector.dense(vectors),model.intercept);
+            model = new LinearRegressionModel(Vectors.dense(vectors) ,model.intercept());
         }
         return model;
     }
