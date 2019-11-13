@@ -12,6 +12,7 @@ import scala.Tuple2;
 import java.util.Arrays;
 
 public class ParallelGD {
+    private final int iterationsNum = 10;
     private double maxErrorValue;
     private JavaRDD<LabeledPoint> data;
     private LinearRegressionModel model;
@@ -33,7 +34,7 @@ public class ParallelGD {
 
             data.mapPartitions(part -> {
                 LinearRegressionModel tmpModel =  LinearRegressionWithSGD
-                        .train((RDD<LabeledPoint>)part,1,0.001,0.001,model.weights());
+                        .train((RDD<LabeledPoint>)part,iterationsNUm,0.001,0.001,model.weights());
                 double[] tmpVector = tmpModel.weights().toArray();
                 for (int i = 0; i < bufferedVectors.length; i++) {
                     bufferedVectors[i] += tmpVector[i];
@@ -42,8 +43,9 @@ public class ParallelGD {
             });
 
             for (int i = 0; i < vectors.length; i++) {
-                vectors[i] += bufferedVectors[i] / workerCount;
+                vectors[i] = bufferedVectors[i] / workerCount;
             }
+            model = new LinearRegressionModel(Vector.dense(vectors),model.intercept);
         }
         return model;
     }
