@@ -1,6 +1,8 @@
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
@@ -9,57 +11,58 @@ import org.apache.spark.mllib.regression.LinearRegressionModel;
 import org.apache.spark.mllib.regression.LinearRegressionWithSGD;
 import org.apache.spark.rdd.RDD;
 import scala.Tuple2;
+import scala.Tuple3;
 
+import java.awt.*;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Random;
+import java.util.function.Consumer;
 
 public class ParallelGD {
-    private final int iterationsNum = 10;
-    private double maxErrorValue;
+
     private JavaRDD<LabeledPoint> data;
-    private LinearRegressionModel model;
     private JavaSparkContext sparkContext;
-    private int workerCount;
-
-    public ParallelGD(double MaxErrorValue, int count, JavaSparkContext context){
-        maxErrorValue = MaxErrorValue;
+    private double learningRate = 1;
+    public ParallelGD(JavaSparkContext context){
         sparkContext = context;
-        workerCount = count;
     }
-    public LinearRegressionModel Train(JavaRDD<LabeledPoint> inputData){
-        data = sparkContext.parallelize(inputData.collect(),workerCount);
-        model = LinearRegressionWithSGD.train(data.rdd(),1);
-        while (!isModelCompleted()){
-            double[] vectors = model.weights().toArray();
-            double[] bufferedVectors = vectors.clone();
-            Arrays.fill(bufferedVectors, 0);
 
-            data.mapPartitions(part -> {
-                LinearRegressionModel tmpModel =  LinearRegressionWithSGD
-                        .train((RDD<LabeledPoint>)part,iterationsNum,0.001,0.001,model.weights());
-                double[] tmpVector = tmpModel.weights().toArray();
-                for (int i = 0; i < bufferedVectors.length; i++) {
-                    bufferedVectors[i] += tmpVector[i];
-                }
-                return part;
-            });
-
-            for (int i = 0; i < vectors.length; i++) {
-                vectors[i] = bufferedVectors[i] / workerCount;
-            }
-            model = new LinearRegressionModel(Vectors.dense(vectors) ,model.intercept());
+    public LinearRegressionModel Train(JavaRDD<LabeledPoint> inputData, int workerCount){
+        int weightCount = inputData.first().features().size();
+        double[] randomWeights = new double[weightCount];
+        Random r = new Random();
+        for (int i = 0; i < weightCount; i++) {
+            randomWeights[i] = r.nextDouble();
         }
-        return model;
+        LinearRegressionModel startModel = new LinearRegressionModel(Vectors.dense(randomWeights),r.nextDouble());
+
+        return this.Train(inputData, workerCount, startModel);
     }
 
-    private boolean isModelCompleted(){
-        JavaRDD<Tuple2<Double, Double>> valuesAndPred = data
-                .map(point -> new Tuple2<>(
-                        point.label(),
-                        model.predict(point.features())));
+    public LinearRegressionModel Train(JavaRDD<LabeledPoint> inputData, int workerCount, LinearRegressionModel model){
+        data = sparkContext.parallelize(inputData.collect(),workerCount);
+        long size = data.count();
 
-        double MSE = valuesAndPred.mapToDouble(
-                tuple -> Math.pow(tuple._1 - tuple._2, 2)).mean();
-        return MSE > maxErrorValue;
+        // Weights here represent data with params a1,a2..an
+        double[] weights = model.weights().toArray();
+        // intercept is b value
+        double intercept = model.intercept();
+
+        double[] bufferedWeights = weights.clone();
+        double bufferedIntercept = intercept;
+
+        PartitionIterator iterator = new PartitionIterator(
+                weights,intercept,learningRate,bufferedWeights,size,bufferedIntercept);
+        data.mapPartitions(iterator);
+
+        // Saving updated weights
+        double[] newWeights = iterator.bufferedWeights.clone();
+        double newIntercept = iterator.bufferedIntercept;
+
+        return new LinearRegressionModel(Vectors.dense(newWeights),newIntercept);
     }
+
+
 
 }
