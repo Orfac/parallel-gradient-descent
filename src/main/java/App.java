@@ -19,7 +19,7 @@ import java.util.Random;
 
 public class App {
         static String path = "/home/arseniy/dev/learn_projects/math/ParallelGradientDescent/lpsa.data";
-        static int workerCount = 1;
+        static int workerCount = 8;
         static double possibleError = 0.5;
 
     public static void main(String[] args) {

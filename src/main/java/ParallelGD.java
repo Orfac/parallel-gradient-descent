@@ -13,7 +13,7 @@ import java.util.Random;
 public class ParallelGD {
 
     private JavaSparkContext sparkContext;
-    private double learningRate = 0.02;
+    private double learningRate = 0.04;
 
     ParallelGD(JavaSparkContext context) {
         sparkContext = context;

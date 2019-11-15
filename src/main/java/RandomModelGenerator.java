@@ -5,7 +5,7 @@ import java.util.Random;
 
 public class RandomModelGenerator {
     public LinearRegressionModel generate(int weightCount){
-        Random r = new Random();
+        Random r = new Random(5);
         double[] randomWeights = new double[weightCount];
         for (int i = 0; i < weightCount; i++) {
             randomWeights[i] = r.nextDouble();
