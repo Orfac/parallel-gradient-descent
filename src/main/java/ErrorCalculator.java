@@ -11,6 +11,6 @@ public class ErrorCalculator {
                         model.predict(point.features())));
 
         return valuesAndPred.mapToDouble(
-                tuple -> Math.pow(tuple._1 - tuple._2, 2)).mean();
+                tuple -> Math.abs(tuple._1 - tuple._2)).max();
     }
 }
