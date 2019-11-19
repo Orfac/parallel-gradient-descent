@@ -19,33 +19,41 @@ import java.util.Random;
 
 public class App {
         static String path = "/home/arseniy/dev/learn_projects/math/ParallelGradientDescent/lpsa.data";
-        static int workerCount = 8;
-        static double possibleError = 0.5;
+        static double possibleDifference = 1e-15;
 
     public static void main(String[] args) {
 
         SparkConf conf = new SparkConf().setAppName("ParallelGD");
         JavaSparkContext sparkContext = new JavaSparkContext(conf);
 
-        JavaRDD<String> input = sparkContext.textFile(path);
+        JavaRDD<String>[] input = sparkContext.textFile(path).randomSplit(new double[]{0.7, 0.3});
+
         InputParser parser = new InputParser();
-        JavaRDD<LabeledPoint> data = parser.parse(input);
+        JavaRDD<LabeledPoint> trainData = parser.parse(input[0]);
+        JavaRDD<LabeledPoint> testData = parser.parse(input[1]);
 
         ParallelGD pgd = new ParallelGD(sparkContext);
-        LinearRegressionModel model = pgd.Train(data,workerCount);
+        LinearRegressionModel model = pgd.Train(trainData);
 
         ErrorCalculator calculator = new ErrorCalculator();
 
-        double mse = calculator.MeanSquaredError(model,data);
-        System.out.println(mse);
-        int i = 1000;
-        while (mse > possibleError && i > 5){
-            model = pgd.Train(data,workerCount,model);
-            mse = calculator.MeanSquaredError(model,data);
-            System.out.println(mse);
-            i--;
-        }
+        double mse = calculator.MeanSquaredError(model,testData);
 
+        // Count amount of operations for learning
+        int counter = 1;
+        double oldMse;
+        do {
+            oldMse = mse;
+
+            model = pgd.Train(trainData,model);
+            mse = calculator.MeanSquaredError(model,testData);
+
+            System.out.println(counter + " " + mse);
+            counter++;
+        } while (Math.abs(mse - oldMse) > possibleDifference);
+
+
+        System.out.println(counter);
         sparkContext.stop();
 
     }

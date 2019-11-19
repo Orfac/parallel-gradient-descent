@@ -13,20 +13,20 @@ import java.util.Random;
 public class ParallelGD {
 
     private JavaSparkContext sparkContext;
-    private double learningRate = 0.04;
+    private double learningRate = 0.05;
 
     ParallelGD(JavaSparkContext context) {
         sparkContext = context;
     }
 
-    public LinearRegressionModel Train(JavaRDD<LabeledPoint> inputData, int workerCount) {
+    public LinearRegressionModel Train(JavaRDD<LabeledPoint> inputData) {
         int weightCount = inputData.first().features().size();
         RandomModelGenerator generator = new RandomModelGenerator();
-        return this.Train(inputData, workerCount, generator.generate(weightCount));
+        return this.Train(inputData, generator.generate(weightCount));
     }
 
-    public LinearRegressionModel Train(JavaRDD<LabeledPoint> inputData, int workerCount, LinearRegressionModel model) {
-        inputData = sparkContext.parallelize(inputData.collect(), workerCount);
+    public LinearRegressionModel Train(JavaRDD<LabeledPoint> inputData, LinearRegressionModel model) {
+        inputData = sparkContext.parallelize(inputData.collect());
         long size = inputData.count();
 
         // Weights here represent data with params a1,a2..an
