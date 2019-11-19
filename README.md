@@ -1,13 +1,18 @@
 # parallel-gradient-descent
 
-# BUILD
-use command
+## Requirements
+
+- maven
+- java 8+
+- spark
+
+## Build
+
 ```
 mvn package
 ```
 
-# DEPLOY
-use command
+## Deploy
 
 ```
 spark-submit --class App --master local[2] target/ParallelGradientDescent-1.0-SNAPSHOT.jar
