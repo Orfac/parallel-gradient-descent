@@ -46,9 +46,9 @@ public class ParallelGD {
         List<Tuple2<Double,Double[]>> list = calculatedModels.collect();
         for (Tuple2<Double, Double[]> partedModelData : list) {
             for (int i = 0; i < bufferedWeights.length; i++) {
-                bufferedWeights[i] -= partedModelData._2[i] * learningRate / size;
+                bufferedWeights[i] += partedModelData._2[i] / size;
             }
-            bufferedIntercept[0] -= learningRate * partedModelData._1 / size;
+            bufferedIntercept[0] += partedModelData._1 / size;
         }
 
         // Saving updated weights
