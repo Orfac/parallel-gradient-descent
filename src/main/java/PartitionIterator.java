@@ -23,9 +23,10 @@ public class PartitionIterator implements PairFlatMapFunction<Iterator<LabeledPo
         }
         double partedIntercept = 0.0;
 
+        int count = 0;
         while (partedData.hasNext()) {
             LabeledPoint point = partedData.next();
-
+            count++;
             // Calculating predicted point
             double[] features = point.features().toArray();
             double predictedY = intercept;
@@ -34,7 +35,7 @@ public class PartitionIterator implements PairFlatMapFunction<Iterator<LabeledPo
             }
 
             // Error calculation
-            double error = 2*(predictedY - point.label());
+            double error = 2 * (point.label() - predictedY);
 
             // Updating weights and intercept
             partedIntercept -= learningRate * error;
@@ -43,6 +44,10 @@ public class PartitionIterator implements PairFlatMapFunction<Iterator<LabeledPo
             }
         }
 
+        partedIntercept /= count;
+        for (int i = 0; i < partedWeights.length; i++) {
+            partedWeights[i] /= count;
+        }
         ArrayList list = new ArrayList<Tuple2<Double,Double[]>>();
         list.add(new Tuple2<>(partedIntercept,partedWeights));
         return list.iterator();
