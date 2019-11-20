@@ -19,7 +19,6 @@ import java.util.Random;
 
 public class App {
         static String path = "/home/arseniy/dev/learn_projects/math/ParallelGradientDescent/lpsa.data";
-        static double possibleDifference = 0.0001;
 
     public static void main(String[] args) {
 
@@ -46,13 +45,15 @@ public class App {
 
             model = pgd.Train(data,model);
             mse = calculator.MeanSquaredError(model,data);
-
-            System.out.println(counter + " " + mse);
+            System.out.println(mse);
             counter++;
-        } while (Math.abs(mse - oldMse) > possibleDifference);
+        } while (counter < 500);
 
-
-        System.out.println(counter + " " +  Arrays.toString(model.weights().toArray()));
+        System.out.println("Weights:");
+        double[] weights = model.weights().toArray();
+        for (int i = 0; i < weights.length; i++) {
+            System.out.println(weights[i]);
+        }
         sparkContext.stop();
 
     }
