@@ -35,7 +35,7 @@ public class PartitionIterator implements PairFlatMapFunction<Iterator<LabeledPo
             }
 
             // Error calculation
-            double error = 2 * (point.label() - predictedY);
+            double error = 2 * (predictedY -point.label() );
 
             // Updating weights and intercept
             partedIntercept -= learningRate * error;
